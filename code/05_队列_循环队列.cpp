@@ -11,8 +11,16 @@ private:
     int count;
 
 public:
-    CircularQueue(int capacity)
-        : data(new int[capacity]), capacity(capacity), frontIndex(0), rearIndex(0), count(0) {}
+    explicit CircularQueue(int capacity)
+        : data(nullptr), capacity(capacity), frontIndex(0), rearIndex(0), count(0) {
+        if (capacity <= 0) {
+            throw invalid_argument("capacity must be positive");
+        }
+        data = new int[static_cast<size_t>(capacity)];
+    }
+
+    CircularQueue(const CircularQueue&) = delete;
+    CircularQueue& operator=(const CircularQueue&) = delete;
 
     ~CircularQueue() {
         delete[] data;

@@ -15,6 +15,9 @@ private:
 public:
     LinkedList() : dummyHead(new Node(0)) {}
 
+    LinkedList(const LinkedList&) = delete;
+    LinkedList& operator=(const LinkedList&) = delete;
+
     ~LinkedList() {
         Node* cur = dummyHead;
         while (cur != nullptr) {
