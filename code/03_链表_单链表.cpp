@@ -15,9 +15,7 @@ private:
 public:
     LinkedList() : dummyHead(new Node(0)) {}
 
-    LinkedList(const LinkedList&) = delete;
-    LinkedList& operator=(const LinkedList&) = delete;
-
+    /* 作用：逐个释放头节点和所有数据节点，防止内存泄漏。 */
     ~LinkedList() {
         Node* cur = dummyHead;
         while (cur != nullptr) {
@@ -27,12 +25,14 @@ public:
         }
     }
 
+    /* 作用：把 value 插到表头。参数 value 是新数据，无返回值。 */
     void pushFront(int value) {
         Node* node = new Node(value);
         node->next = dummyHead->next;
         dummyHead->next = node;
     }
 
+    /* 作用：把 value 插到表尾。cur 用来寻找最后一个节点。 */
     void pushBack(int value) {
         Node* cur = dummyHead;
         while (cur->next != nullptr) {
@@ -41,6 +41,7 @@ public:
         cur->next = new Node(value);
     }
 
+    /* 作用：删除第一个等于 value 的节点。删除成功返回 true。 */
     bool remove(int value) {
         Node* prev = dummyHead;
         while (prev->next != nullptr && prev->next->value != value) {
@@ -56,6 +57,7 @@ public:
         return true;
     }
 
+    /* 作用：原地反转链表。prev、cur、next 分别指向前驱、当前和后继。 */
     void reverse() {
         Node* prev = nullptr;
         Node* cur = dummyHead->next;
@@ -70,6 +72,7 @@ public:
         dummyHead->next = prev;
     }
 
+    /* 作用：从头到尾输出链表，无参数、无返回值。 */
     void print() const {
         Node* cur = dummyHead->next;
         while (cur != nullptr) {

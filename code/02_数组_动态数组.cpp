@@ -1,90 +1,94 @@
-#include <algorithm>
-#include <cstddef>
 #include <iostream>
-#include <stdexcept>
-#include <utility>
+using namespace std;
 
-template <typename T>
 class DynamicArray {
 private:
-    T* data_;
-    std::size_t size_;
-    std::size_t capacity_;
+    int* data;
+    int currentSize;
+    int currentCapacity;
 
-    void reserve(std::size_t newCapacity) {
-        if (newCapacity <= capacity_) return;
-        T* newData = new T[newCapacity];
-        for (std::size_t i = 0; i < size_; ++i) newData[i] = std::move_if_noexcept(data_[i]);
-        delete[] data_;
-        data_ = newData;
-        capacity_ = newCapacity;
+    /* 作用：扩大底层数组。参数 newCapacity 是新容量，无返回值。 */
+    void resize(int newCapacity) {
+        int* newData = new int[newCapacity];
+        for (int i = 0; i < currentSize; i++) newData[i] = data[i];
+        delete[] data;
+        data = newData;
+        currentCapacity = newCapacity;
     }
 
 public:
-    DynamicArray() : data_(new T[2]), size_(0), capacity_(2) {}
-    ~DynamicArray() { delete[] data_; }
-
-    DynamicArray(const DynamicArray& other)
-        : data_(other.capacity_ == 0 ? nullptr : new T[other.capacity_]),
-          size_(other.size_), capacity_(other.capacity_) {
-        if (size_ > 0) std::copy(other.data_, other.data_ + size_, data_);
+    /* 作用：创建初始容量为 2 的空顺序表。 */
+    DynamicArray() {
+        currentSize = 0;
+        currentCapacity = 2;
+        data = new int[currentCapacity];
     }
 
-    DynamicArray& operator=(DynamicArray other) {
-        swap(other);
+    /* 作用：深拷贝另一个动态数组。 */
+    DynamicArray(const DynamicArray& other) {
+        currentSize = other.currentSize;
+        currentCapacity = other.currentCapacity;
+        data = new int[currentCapacity];
+        for (int i = 0; i < currentSize; i++) data[i] = other.data[i];
+    }
+
+    /* 作用：深拷贝赋值，返回当前对象。 */
+    DynamicArray& operator=(const DynamicArray& other) {
+        if (this == &other) return *this;
+        int* newData = new int[other.currentCapacity];
+        for (int i = 0; i < other.currentSize; i++) newData[i] = other.data[i];
+        delete[] data;
+        data = newData;
+        currentSize = other.currentSize;
+        currentCapacity = other.currentCapacity;
         return *this;
     }
 
-    DynamicArray(DynamicArray&& other) noexcept
-        : data_(std::exchange(other.data_, nullptr)),
-          size_(std::exchange(other.size_, 0)),
-          capacity_(std::exchange(other.capacity_, 0)) {}
+    /* 作用：释放动态数组。 */
+    ~DynamicArray() { delete[] data; }
 
-    void swap(DynamicArray& other) noexcept {
-        std::swap(data_, other.data_);
-        std::swap(size_, other.size_);
-        std::swap(capacity_, other.capacity_);
-    }
-
-    void pushBack(const T& value) {
-        if (size_ == capacity_) reserve(capacity_ == 0 ? 2 : capacity_ * 2);
-        data_[size_++] = value;
+    /* 作用：在末尾加入 value，无返回值。容量不足时扩为两倍。 */
+    void pushBack(int value) {
+        if (currentSize == currentCapacity) resize(currentCapacity * 2);
+        data[currentSize] = value;
+        currentSize++;
     }
 
-    void insert(std::size_t index, const T& value) {
-        if (index > size_) throw std::out_of_range("index out of range");
-        if (size_ == capacity_) reserve(capacity_ == 0 ? 2 : capacity_ * 2);
-        for (std::size_t i = size_; i > index; --i) data_[i] = std::move(data_[i - 1]);
-        data_[index] = value;
-        ++size_;
+    /* 作用：在 index 位置插入 value。成功返回 true。 */
+    bool insert(int index, int value) {
+        if (index < 0 || index > currentSize) return false;
+        if (currentSize == currentCapacity) resize(currentCapacity * 2);
+        for (int i = currentSize; i > index; i--) data[i] = data[i - 1];
+        data[index] = value;
+        currentSize++;
+        return true;
     }
 
-    void removeAt(std::size_t index) {
-        if (index >= size_) throw std::out_of_range("index out of range");
-        for (std::size_t i = index; i + 1 < size_; ++i) data_[i] = std::move(data_[i + 1]);
-        --size_;
+    /* 作用：删除 index 位置。成功返回 true。 */
+    bool removeAt(int index) {
+        if (index < 0 || index >= currentSize) return false;
+        for (int i = index; i < currentSize - 1; i++) data[i] = data[i + 1];
+        currentSize--;
+        return true;
     }
 
-    T& at(std::size_t index) {
-        if (index >= size_) throw std::out_of_range("index out of range");
-        return data_[index];
+    /* 作用：读取 index 位置，ok 表示是否越界。 */
+    int get(int index, bool& ok) const {
+        ok = index >= 0 && index < currentSize;
+        return ok ? data[index] : 0;
     }
-    const T& at(std::size_t index) const {
-        if (index >= size_) throw std::out_of_range("index out of range");
-        return data_[index];
-    }
-    std::size_t size() const noexcept { return size_; }
-    std::size_t capacity() const noexcept { return capacity_; }
+
+    /* 作用：返回元素数量和容量。 */
+    int size() const { return currentSize; }
+    int capacity() const { return currentCapacity; }
 };
 
 int main() {
-    DynamicArray<int> array;
+    DynamicArray array;
     array.pushBack(10); array.pushBack(20); array.pushBack(30);
-    array.insert(1, 15);
-    array.removeAt(2);
-    DynamicArray<int> copy = array; // 深拷贝
-    copy.at(0) = 99;
-    std::cout << "原数组/副本首元素: " << array.at(0) << ' ' << copy.at(0) << '\n';
-    for (std::size_t i = 0; i < array.size(); ++i) std::cout << array.at(i) << ' ';
-    std::cout << "(容量 " << array.capacity() << ")\n";
+    array.insert(1, 15); array.removeAt(2);
+    bool ok = false;
+    for (int i = 0; i < array.size(); i++) cout << array.get(i, ok) << ' ';
+    cout << "容量=" << array.capacity() << endl;
+    return 0;
 }

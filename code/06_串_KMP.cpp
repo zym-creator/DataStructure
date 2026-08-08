@@ -2,11 +2,14 @@
 #include <iostream>
 #include <string>
 #include <vector>
+using namespace std;
 
-std::vector<std::size_t> buildLps(const std::string& pattern) {
-    std::vector<std::size_t> lps(pattern.size(), 0);
-    std::size_t length = 0;
-    for (std::size_t i = 1; i < pattern.size();) {
+/* 作用：计算模式串的 LPS 数组。pattern 是模式串，返回每个位置的最长相等前后缀长度。 */
+vector<int> buildLps(const string& pattern) {
+    vector<int> lps(pattern.size(), 0);
+    int length = 0; // 当前已经找到的相等前后缀长度
+    int i = 1;      // 正在计算 lps[i]
+    while (i < (int)pattern.size()) {
         if (pattern[i] == pattern[length]) {
             lps[i++] = ++length;
         } else if (length > 0) {
@@ -18,18 +21,19 @@ std::vector<std::size_t> buildLps(const std::string& pattern) {
     return lps;
 }
 
-std::size_t kmpFind(const std::string& text, const std::string& pattern) {
+/* 作用：在 text 中查找 pattern。找到返回起始下标，找不到返回 -1。 */
+int kmpFind(const string& text, const string& pattern) {
     if (pattern.empty()) {
         return 0;
     }
-    const auto lps = buildLps(pattern);
-    std::size_t i = 0;
-    std::size_t j = 0;
-    while (i < text.size()) {
+    vector<int> lps = buildLps(pattern);
+    int i = 0; // 主串下标，只向右移动
+    int j = 0; // 模式串下标，失配时按 lps 回退
+    while (i < (int)text.size()) {
         if (text[i] == pattern[j]) {
             ++i;
             ++j;
-            if (j == pattern.size()) {
+            if (j == (int)pattern.size()) {
                 return i - j;
             }
         } else if (j > 0) {
@@ -38,18 +42,20 @@ std::size_t kmpFind(const std::string& text, const std::string& pattern) {
             ++i;
         }
     }
-    return std::string::npos;
+    return -1;
 }
 
 int main() {
-    const std::string text = "ababcabcacbab";
-    const std::string pattern = "abcac";
-    const auto position = kmpFind(text, pattern);
-    std::cout << "匹配位置: " << position << '\n';
+    string text = "ababcabcacbab";
+    string pattern = "abcac";
+    int position = kmpFind(text, pattern);
+    cout << "匹配位置: " << position << '\n';
 
-    std::cout << "LPS: ";
-    for (const auto value : buildLps(pattern)) {
-        std::cout << value << ' ';
+    cout << "LPS: ";
+    vector<int> lps = buildLps(pattern);
+    for (int i = 0; i < (int)lps.size(); i++) {
+        cout << lps[i] << ' ';
     }
-    std::cout << '\n';
+    cout << '\n';
+    return 0;
 }

@@ -1,74 +1,78 @@
-#include <cstddef>
-#include <functional>
 #include <iostream>
-#include <memory>
 #include <queue>
 #include <string>
-#include <utility>
 #include <vector>
+using namespace std;
 
 struct HuffmanNode {
     int weight;
     char symbol;
-    std::shared_ptr<HuffmanNode> left;
-    std::shared_ptr<HuffmanNode> right;
+    HuffmanNode* left;
+    HuffmanNode* right;
+    HuffmanNode(int w, char ch) : weight(w), symbol(ch), left(NULL), right(NULL) {}
 };
 
-using HuffmanPtr = std::shared_ptr<HuffmanNode>;
+struct CompareNode {
+    /* 作用：让 priority_queue 变成最小堆，权值小的节点先出队。 */
+    bool operator()(HuffmanNode* a, HuffmanNode* b) { return a->weight > b->weight; }
+};
 
-HuffmanPtr buildHuffman(const std::vector<std::pair<char, int>>& frequencies) {
-    auto heavier = [](const HuffmanPtr& a, const HuffmanPtr& b) {
-        return a->weight > b->weight;
-    };
-    std::priority_queue<HuffmanPtr, std::vector<HuffmanPtr>, decltype(heavier)> heap(heavier);
-    for (const auto& [symbol, weight] : frequencies) {
-        heap.push(std::make_shared<HuffmanNode>(HuffmanNode{weight, symbol, nullptr, nullptr}));
-    }
+/* 作用：根据字符和频率建立 Huffman 树。返回根指针。 */
+HuffmanNode* buildHuffman(const vector<char>& symbols, const vector<int>& weights) {
+    priority_queue<HuffmanNode*, vector<HuffmanNode*>, CompareNode> heap;
+    for (int i = 0; i < (int)symbols.size(); i++) heap.push(new HuffmanNode(weights[i], symbols[i]));
     while (heap.size() > 1) {
-        auto left = heap.top(); heap.pop();
-        auto right = heap.top(); heap.pop();
-        heap.push(std::make_shared<HuffmanNode>(
-            HuffmanNode{left->weight + right->weight, '\0', left, right}));
+        HuffmanNode* left = heap.top(); heap.pop();
+        HuffmanNode* right = heap.top(); heap.pop();
+        HuffmanNode* parent = new HuffmanNode(left->weight + right->weight, '\0');
+        parent->left = left; parent->right = right;
+        heap.push(parent);
     }
-    return heap.empty() ? nullptr : heap.top();
+    return heap.empty() ? NULL : heap.top();
 }
 
-void printCodes(const HuffmanPtr& node, const std::string& prefix = "") {
-    if (!node) return;
-    if (!node->left && !node->right) {
-        std::cout << node->symbol << ": " << (prefix.empty() ? "0" : prefix) << '\n';
+/* 作用：递归输出叶子字符的 Huffman 编码。code 是当前路径。 */
+void printCodes(HuffmanNode* node, string code) {
+    if (node == NULL) return;
+    if (node->left == NULL && node->right == NULL) {
+        cout << node->symbol << ": " << (code.empty() ? "0" : code) << endl;
         return;
     }
-    printCodes(node->left, prefix + '0');
-    printCodes(node->right, prefix + '1');
+    printCodes(node->left, code + "0");
+    printCodes(node->right, code + "1");
+}
+
+/* 作用：后序释放 Huffman 树的所有节点。 */
+void destroyHuffman(HuffmanNode* node) {
+    if (node == NULL) return;
+    destroyHuffman(node->left); destroyHuffman(node->right); delete node;
 }
 
 class DisjointSet {
 private:
-    std::vector<std::size_t> parent_;
-    std::vector<std::size_t> size_;
+    vector<int> parent;
+    vector<int> setSize;
 public:
-    explicit DisjointSet(std::size_t n) : parent_(n), size_(n, 1) {
-        for (std::size_t i = 0; i < n; ++i) parent_[i] = i;
-    }
-    std::size_t find(std::size_t x) {
-        if (parent_.at(x) != x) parent_[x] = find(parent_[x]);
-        return parent_[x];
-    }
-    bool unite(std::size_t a, std::size_t b) {
+    /* 作用：建立 n 个互不相交的集合。 */
+    DisjointSet(int n) : parent(n), setSize(n, 1) { for (int i = 0; i < n; i++) parent[i] = i; }
+    /* 作用：查找 x 所在集合的根，并进行路径压缩。 */
+    int find(int x) { if (parent[x] != x) parent[x] = find(parent[x]); return parent[x]; }
+    /* 作用：合并 a、b 所在集合。原本已连通返回 false。 */
+    bool unite(int a, int b) {
         a = find(a); b = find(b);
         if (a == b) return false;
-        if (size_[a] < size_[b]) std::swap(a, b);
-        parent_[b] = a;
-        size_[a] += size_[b];
-        return true;
+        if (setSize[a] < setSize[b]) { int temp = a; a = b; b = temp; }
+        parent[b] = a; setSize[a] += setSize[b]; return true;
     }
 };
 
 int main() {
-    printCodes(buildHuffman({{'A', 5}, {'B', 9}, {'C', 12}, {'D', 13}, {'E', 16}, {'F', 45}}));
-    DisjointSet sets(5);
-    sets.unite(0, 1);
-    sets.unite(1, 2);
-    std::cout << "0 和 2 连通: " << std::boolalpha << (sets.find(0) == sets.find(2)) << '\n';
+    vector<char> symbols; symbols.push_back('A'); symbols.push_back('B'); symbols.push_back('C'); symbols.push_back('D');
+    vector<int> weights; weights.push_back(5); weights.push_back(9); weights.push_back(12); weights.push_back(13);
+    HuffmanNode* root = buildHuffman(symbols, weights);
+    printCodes(root, "");
+    DisjointSet sets(5); sets.unite(0, 1); sets.unite(1, 2);
+    cout << "0 和 2 连通: " << boolalpha << (sets.find(0) == sets.find(2)) << endl;
+    destroyHuffman(root);
+    return 0;
 }

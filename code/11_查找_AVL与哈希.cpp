@@ -1,103 +1,90 @@
 #include <algorithm>
-#include <cstddef>
 #include <iostream>
-#include <memory>
-#include <optional>
-#include <stdexcept>
 #include <vector>
+using namespace std;
 
-std::size_t lowerBound(const std::vector<int>& values, int target) {
-    std::size_t left = 0;
-    std::size_t right = values.size();
+/* 作用：在有序数组中找第一个大于等于 target 的下标。 */
+int lowerBound(const vector<int>& values, int target) {
+    int left = 0, right = (int)values.size();
     while (left < right) {
-        const auto mid = left + (right - left) / 2;
-        if (values[mid] < target) left = mid + 1;
-        else right = mid;
+        int mid = left + (right - left) / 2;
+        if (values[mid] < target) left = mid + 1; else right = mid;
     }
     return left;
 }
 
 struct AvlNode {
-    int key;
-    int height = 1;
-    std::unique_ptr<AvlNode> left;
-    std::unique_ptr<AvlNode> right;
-    explicit AvlNode(int key) : key(key) {}
+    int key, height;
+    AvlNode* left;
+    AvlNode* right;
+    AvlNode(int value) : key(value), height(1), left(NULL), right(NULL) {}
 };
 
-int height(const std::unique_ptr<AvlNode>& node) { return node ? node->height : 0; }
-void update(AvlNode& node) { node.height = 1 + std::max(height(node.left), height(node.right)); }
+/* 作用：返回节点高度，空节点高度为 0。 */
+int nodeHeight(AvlNode* node) { return node == NULL ? 0 : node->height; }
+/* 作用：根据左右子树重新计算 node 的高度。 */
+void updateHeight(AvlNode* node) { node->height = 1 + max(nodeHeight(node->left), nodeHeight(node->right)); }
 
-std::unique_ptr<AvlNode> rotateRight(std::unique_ptr<AvlNode> root) {
-    auto newRoot = std::move(root->left);
-    root->left = std::move(newRoot->right);
-    update(*root);
-    newRoot->right = std::move(root);
-    update(*newRoot);
-    return newRoot;
+/* 作用：对 root 进行右旋，返回旋转后的新根。 */
+AvlNode* rotateRight(AvlNode* root) {
+    AvlNode* newRoot = root->left;
+    AvlNode* middle = newRoot->right;
+    newRoot->right = root; root->left = middle;
+    updateHeight(root); updateHeight(newRoot); return newRoot;
 }
 
-std::unique_ptr<AvlNode> rotateLeft(std::unique_ptr<AvlNode> root) {
-    auto newRoot = std::move(root->right);
-    root->right = std::move(newRoot->left);
-    update(*root);
-    newRoot->left = std::move(root);
-    update(*newRoot);
-    return newRoot;
+/* 作用：对 root 进行左旋，返回旋转后的新根。 */
+AvlNode* rotateLeft(AvlNode* root) {
+    AvlNode* newRoot = root->right;
+    AvlNode* middle = newRoot->left;
+    newRoot->left = root; root->right = middle;
+    updateHeight(root); updateHeight(newRoot); return newRoot;
 }
 
-std::unique_ptr<AvlNode> insert(std::unique_ptr<AvlNode> root, int key) {
-    if (!root) return std::make_unique<AvlNode>(key);
-    if (key < root->key) root->left = insert(std::move(root->left), key);
-    else if (key > root->key) root->right = insert(std::move(root->right), key);
-    else return root; // 本示例忽略重复键
-    update(*root);
-    const int balance = height(root->left) - height(root->right);
-    if (balance > 1) {
-        if (key > root->left->key) root->left = rotateLeft(std::move(root->left));
-        return rotateRight(std::move(root));
-    }
-    if (balance < -1) {
-        if (key < root->right->key) root->right = rotateRight(std::move(root->right));
-        return rotateLeft(std::move(root));
-    }
+/* 作用：把 key 插入 AVL 树，返回调整后的根。重复键不插入。 */
+AvlNode* insertAvl(AvlNode* root, int key) {
+    if (root == NULL) return new AvlNode(key);
+    if (key < root->key) root->left = insertAvl(root->left, key);
+    else if (key > root->key) root->right = insertAvl(root->right, key);
+    else return root;
+    updateHeight(root);
+    int balance = nodeHeight(root->left) - nodeHeight(root->right);
+    if (balance > 1 && key < root->left->key) return rotateRight(root); // LL
+    if (balance < -1 && key > root->right->key) return rotateLeft(root); // RR
+    if (balance > 1 && key > root->left->key) { root->left = rotateLeft(root->left); return rotateRight(root); }
+    if (balance < -1 && key < root->right->key) { root->right = rotateRight(root->right); return rotateLeft(root); }
     return root;
 }
 
-class ChainedHashSet {
+/* 作用：中序输出 AVL 树，结果应递增。 */
+void inorder(AvlNode* node) { if (node != NULL) { inorder(node->left); cout << node->key << ' '; inorder(node->right); } }
+/* 作用：后序释放 AVL 树。 */
+void destroyAvl(AvlNode* node) { if (node != NULL) { destroyAvl(node->left); destroyAvl(node->right); delete node; } }
+
+class HashSet {
 private:
-    std::vector<std::vector<int>> buckets_;
-    std::size_t index(int key) const { return std::hash<int>{}(key) % buckets_.size(); }
+    vector<vector<int> > buckets;
+    /* 作用：把 key 转为合法桶下标，也能处理负数。 */
+    int hashIndex(int key) const { int index = key % (int)buckets.size(); return index < 0 ? index + buckets.size() : index; }
 public:
-    explicit ChainedHashSet(std::size_t bucketCount) : buckets_(bucketCount) {
-        if (bucketCount == 0) throw std::invalid_argument("bucket count must be positive");
-    }
+    HashSet(int bucketCount) : buckets(bucketCount > 0 ? bucketCount : 1) {}
+    /* 作用：判断 key 是否存在。 */
     bool contains(int key) const {
-        const auto& bucket = buckets_[index(key)];
-        return std::find(bucket.begin(), bucket.end(), key) != bucket.end();
+        const vector<int>& bucket = buckets[hashIndex(key)];
+        for (int i = 0; i < (int)bucket.size(); i++) if (bucket[i] == key) return true;
+        return false;
     }
-    bool insert(int key) {
-        auto& bucket = buckets_[index(key)];
-        if (std::find(bucket.begin(), bucket.end(), key) != bucket.end()) return false;
-        bucket.push_back(key);
-        return true;
-    }
+    /* 作用：插入 key。原来不存在返回 true。 */
+    bool insert(int key) { if (contains(key)) return false; buckets[hashIndex(key)].push_back(key); return true; }
 };
 
-void inorder(const AvlNode* node) {
-    if (!node) return;
-    inorder(node->left.get());
-    std::cout << node->key << ' ';
-    inorder(node->right.get());
-}
-
 int main() {
-    const std::vector<int> values{1, 3, 3, 5, 8};
-    std::cout << "第一个 >= 3 的下标: " << lowerBound(values, 3) << '\n';
-    std::unique_ptr<AvlNode> root;
-    for (int key : {30, 20, 10, 25, 40, 50}) root = insert(std::move(root), key);
-    std::cout << "AVL 中序: "; inorder(root.get()); std::cout << '\n';
-    ChainedHashSet set(7);
-    set.insert(10); set.insert(17);
-    std::cout << "包含 17: " << std::boolalpha << set.contains(17) << '\n';
+    vector<int> values; values.push_back(1); values.push_back(3); values.push_back(3); values.push_back(5);
+    cout << "第一个 >= 3 的下标: " << lowerBound(values, 3) << endl;
+    AvlNode* root = NULL; int keys[] = {30, 20, 10, 25, 40, 50};
+    for (int i = 0; i < 6; i++) root = insertAvl(root, keys[i]);
+    cout << "AVL 中序: "; inorder(root); cout << endl;
+    HashSet set(7); set.insert(10); set.insert(17);
+    cout << "包含 17: " << boolalpha << set.contains(17) << endl;
+    destroyAvl(root); return 0;
 }

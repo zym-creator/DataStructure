@@ -1,77 +1,67 @@
-#include <algorithm>
-#include <cstddef>
 #include <iostream>
-#include <stdexcept>
-#include <utility>
+using namespace std;
 
 class Buffer {
 private:
-    std::size_t size_ = 0;
-    int* data_ = nullptr;
+    int* data;
+    int length;
 
 public:
-    explicit Buffer(std::size_t size = 0)
-        : size_(size), data_(size == 0 ? nullptr : new int[size]{}) {}
-
-    ~Buffer() { delete[] data_; }
-
-    // 深拷贝：为新对象创建独立数组。
-    Buffer(const Buffer& other)
-        : size_(other.size_), data_(size_ == 0 ? nullptr : new int[size_]) {
-        if (size_ > 0) std::copy(other.data_, other.data_ + size_, data_);
+    /* 作用：创建指定长度的动态数组。参数 size 是元素个数。 */
+    Buffer(int size = 0) {
+        length = size < 0 ? 0 : size;
+        data = length == 0 ? NULL : new int[length];
+        for (int i = 0; i < length; i++) data[i] = 0;
     }
 
-    // copy-and-swap 同时处理自赋值并提供强异常安全保证。
+    /* 作用：深拷贝另一个 Buffer。参数 other 是被复制对象。 */
+    Buffer(const Buffer& other) {
+        length = other.length;
+        data = length == 0 ? NULL : new int[length];
+        for (int i = 0; i < length; i++) data[i] = other.data[i];
+    }
+
+    /* 作用：深拷贝赋值。返回当前对象，便于连续赋值。 */
     Buffer& operator=(const Buffer& other) {
-        Buffer copy(other);
-        swap(copy);
+        if (this == &other) return *this; // 防止自己赋值给自己
+        int* newData = other.length == 0 ? NULL : new int[other.length];
+        for (int i = 0; i < other.length; i++) newData[i] = other.data[i];
+        delete[] data;
+        data = newData;
+        length = other.length;
         return *this;
     }
 
-    // 移动：接管地址，并把源对象置为可安全析构的空状态。
-    Buffer(Buffer&& other) noexcept
-        : size_(std::exchange(other.size_, 0)),
-          data_(std::exchange(other.data_, nullptr)) {}
-
-    Buffer& operator=(Buffer&& other) noexcept {
-        if (this != &other) {
-            delete[] data_;
-            size_ = std::exchange(other.size_, 0);
-            data_ = std::exchange(other.data_, nullptr);
-        }
-        return *this;
+    /* 作用：释放构造函数申请的动态数组。 */
+    ~Buffer() {
+        delete[] data;
+        data = NULL;
     }
 
-    void swap(Buffer& other) noexcept {
-        std::swap(size_, other.size_);
-        std::swap(data_, other.data_);
+    /* 作用：修改指定位置。成功返回 true，越界返回 false。 */
+    bool set(int index, int value) {
+        if (index < 0 || index >= length) return false;
+        data[index] = value;
+        return true;
     }
 
-    int& at(std::size_t index) {
-        if (index >= size_) {
-            throw std::out_of_range("Buffer index out of range");
-        }
-        return data_[index];
+    /* 作用：读取指定位置。参数 ok 用来带回是否成功。 */
+    int get(int index, bool& ok) const {
+        ok = index >= 0 && index < length;
+        return ok ? data[index] : 0;
     }
 
-    const int& at(std::size_t index) const {
-        if (index >= size_) {
-            throw std::out_of_range("Buffer index out of range");
-        }
-        return data_[index];
-    }
-
-    std::size_t size() const noexcept { return size_; }
+    /* 作用：返回数组中的元素个数。 */
+    int size() const { return length; }
 };
 
 int main() {
     Buffer original(3);
-    original.at(0) = 10;
-
+    original.set(0, 10);
     Buffer copied = original;
-    copied.at(0) = 99;
-    std::cout << "深拷贝后互不影响: " << original.at(0) << ' ' << copied.at(0) << '\n';
-
-    Buffer moved = std::move(copied);
-    std::cout << "移动后大小: " << copied.size() << " -> " << moved.size() << '\n';
+    copied.set(0, 99);
+    bool ok = false;
+    cout << "原对象: " << original.get(0, ok) << endl;
+    cout << "副本: " << copied.get(0, ok) << endl;
+    return 0;
 }
