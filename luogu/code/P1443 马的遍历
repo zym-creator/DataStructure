@@ -6,8 +6,6 @@
 using namespace std;
 using pos=pair<int,int>;
 
-
-
 int main(){
     int n,m,x,y;
     cin>>n>>m>>x>>y;
